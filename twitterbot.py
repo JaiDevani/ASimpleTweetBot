@@ -7,6 +7,14 @@ from time import sleep
 from nltk.tokenize import RegexpTokenizer
 from credentials import * #import twitter credentials from the file
 from random import *
+import datetime
+
+#writes likes to a given file
+def writefile(filename, toWrite):
+    f = open(filename, 'a')
+    f.write(toWrite)
+    f.close()
+
 def gethashtags(subject):
     tags = []
     tweets = api.search(subject)
@@ -16,11 +24,8 @@ def gethashtags(subject):
     return tags
 #takes the sentence and returns an array of the words in the sentence
 def tokenize(sentence):
-    result = re.sub(r"http\S+", "", sentence)
-    #tokenizer = RegexpTokenizer(r'[A-Za-z]+')
-    #tokens = tokenizer.tokenize(result)
-    tokens = re.split('[^A-Za-z]+', result.lower()) #grab the words
-    tokens = list(filter(None, tokens))
+    tokens = re.split('[^A-Za-z]+', sentence.lower()) #grab the words
+    tokens = list(filter(None, tokens)) #remove nulls
     return tokens
 #takes 'info' and seraches twitter for tweets with that keyword and then
 def ngram(words, n=2):
@@ -36,6 +41,7 @@ def ngram(words, n=2):
     #now sort the list my frequency
     gram = sorted(gram.items(), key=operator.itemgetter(1))
     return gram
+#uses wordcount as a weight to pseuo-randomly choose the next word
 def chooseword(choices):
    total = sum(wc for word, wc in choices)
    r = uniform(0, total)
@@ -44,199 +50,95 @@ def chooseword(choices):
       if count + wc > r:
          return word[1]
       count += wc
+#uses a markov chain to create a sentence of given word size
 def markov(words, chainlength=2, size=7):
-    curr = 'the'
+    curr = choice(words)
     sentence = []
     gram2 = ngram(words, chainlength)
     for i in range(size): #number of  words for the sentence
         sentence.append(curr)
         choices = [element for element in gram2 if element[0][0] == curr]
         curr = chooseword(choices)
+        if curr is None:
+            break
+    if len(sentence) < 3:
+        markov(words, chainlength, size) # if our chain is bad try again
     return ' '.join(sentence)
+#get rid of some of the unwanted things that are in normal tweets
+def clean(tweet):
+    tweet = re.sub("https?\:\/\/", "", tweet)   #links
+    tweet = re.sub("#\S+", "", tweet)           #hashtags
+    tweet = re.sub("\.?@", "", tweet)           #at mentions
+    tweet = re.sub("RT.+", "", tweet)           #Retweets
+    tweet = re.sub("rt.+", "", tweet)           #retweets in lower case
+    tweet = re.sub("Video\:", "", tweet)        #Videos
+    tweet = re.sub("\n", "", tweet)             #new lines
+    tweet = re.sub("^\.\s.", "", tweet)         #leading whitespace
+    tweet = re.sub("\s+", " ", tweet)           #extra whitespace
+    tweet = re.sub("&amp;", "and", tweet)       #encoded ampersands
+    return tweet
 #returns an array with all the tokens from all the tweets
 def gatherinfo(info):
     data = []
     tokens = []
     tweets = api.search(info)
     for tweet in tweets:
-        data.append(tweet.text)
+        data.append(clean(tweet.text))
     for d in data:
         gathered = tokenize(d)
         for t in gathered:
             tokens.append(t)
     return tokens
-def generateSentence():
-    sentence = []
-    choice = randint(1, 5)
-    start = 'I think that '
-    if choice is 1:
-        start = 'Can you believe '
-    elif choice is 2:
-        start = 'I wonder if '
-    elif choice is 3:
-        start = 'It is crazy that '
-    elif choice is 4:
-        start = 'Is it possible that '
-    choice = randint(1,4)
-    middle = ' would '
-    if choice is 1:
-        middle = ' can '
-    elif choice is 2:
-        middle = ' caused '
-    elif choice is 3:
-        middle = ' cannot '
-    sentence.append(start)
-    sentence.append(middle)
-    return sentence
-#fills out a madlib based off the words from a given search topic
-def madlib(subject):
-    tokens = gatherinfo(subject)
-    pos = nltk.pos_tag(tokens)
-    noun = 'Frog'  #set some default values
-    verb = 'hop'
-    adj = 'brown'
-    noun1 = 'log'
-    havenoun = False #set all 'found' variables to false
-    haveverb = False
-    haveadj = False
-    havenoun1 = False
-    sentence = generateSentence()
-    for word in pos:
-        if word[1] == 'NN' and havenoun is False:
-            noun = word[0];
-            if randint(1,5) != 1:  #add randomness so it doesn't pick the first vaules it sees
-                havenoun = True
-        if word[1] == 'VB' and haveverb is False:
-            verb = word[0];
-            if randint(1,5) != 3:
-                haveverb = True
-        if word[1] == 'JJ' and haveadj is False:
-            adj = word[0];
-            if randint(1,5) != 2:
-                haveadj = True
-        if word[1] == 'NN' and havenoun1 is False and word[0] != noun:
-            noun1 = word[0];
-            if randint(1,5) != 5:
-                havenoun1 = True
-    m = sentence[0] + subject + sentence[1] + verb + ' the ' + adj + ' ' + noun1 + ' #' + noun
-    tweet(m)
-#read lines from a file and returns them
-def readfile(filename):
-    # Open text file verne.txt (or your chosen file) for reading
-    myfile = open(filename, encoding="utf8")
-
-    # Read lines one by one from my_file and assign to file_lines variable
-    lines = myfile.read()
-    # Close file
-    myfile.close()
-    return lines
-#writes likes to a given file
-def writefile(filename, toWrite):
-    f = open(filename, 'a')
-    f.write(toWrite)
-    f.close()
-#return a trending hastag
 def trending():
     trending = api.trends_place(2487610)
     data = trending[0]
     trends = data['trends']
     hashtags = [trend['name'] for trend in trends]
-    hashtag = hashtags[randint(0, 10)]
-    print(hashtag)
+    hashtag = hashtags[randint(0, len(hashtags))]
     return hashtag
+#give it 2 times (in hours) you want to wait between and it gives you the number of seconds
+def waittime(first, second):
+    if (first > second):
+        high = first *3600
+        low = second *3600
+    else:
+        high = second *3600
+        low = first *3600
+    return randint(low, high)
 #tweet the message given
 def tweet(message):
     try:
-        print(message)
+        #print(message)
         api.update_status(message)
     except tweepy.TweepError as e:
         print(e.reason)
-#do task 1
-def task1():
-    f = input(' Give me the text file name: ')
-    tweets = readfile(f)
-    for tw in tweets:
-        tweet(tw)
-#do task 2
-def task2():
-    np = input(' What should I tweet about: ')
-    madlib(np)
-#do task 3
-def task3():
-    totweet = input(' What should I Tweet?:')
-    tweet(totweet)
-#do task 4
-def task4():
-    totweet = input(' What should I Tweet about?:')
-    for x in range(12):
-        madlib(totweet)
-        sleep(300)
-#do task 5
-def task5():
-    trending()
-#do task 6
-def task6():
-    print("currently unavailable")
-#tweet a trending topic
-def task7():
-    for x in range(4):
-        madlib(trending())
-        sleep(900)
-def task8():
-    try:
-        subject = input('What should I Tweet about: ')
-        twt = markov(gatherinfo(subject), randint(5,15), randint(12,15))
-        hashtags = gethashtags(subject)
-        twt += '. ' + hashtags[randint(0,len(hashtags)-1)]
-        tweet(twt)
-    except:
-        print('I Gooped')
-#quit the program
-def q():
-    print('Thank you for using A Simple Tweet Bot! :)')
-    return False
-#show menu options
-def menu():
-    run = True
-    while(run):
-        print('\n I can do many things, here are my current tasks:')
-        print(' ----------------------------------------------------------')
-        print('\t1: Read from a file given and tweet each line.')
-        print('\t2: Fill out a Madlib using words from a tweet search.')
-        print('\t3: Tweet a given string.')
-        print('\t4: Tweet about a subject every 5 minutes.')
-        print('\t5: Show the trending hashtag(#).')
-        print('\t6: Update information codex with a trending hashtag.')
-        print('\t7: Tweet a trending topic every 15 minutes')
-        print('\t8: Create a sentence from a markov chain.')
-        print('\tq: Quit the program.')
-        task = input(' What shall I do: ')
-        if task == '1':
-            task1()
-        elif task == '2':
-            task2()
-        elif task == '3':
-            task3()
-        elif task == '4':
-            task4()
-        elif task == '5':
-            task5()
-        elif task == '6':
-            task6()
-        elif task == '7':
-            task7()
-        elif task == '8':
-            task8()
-        elif task == 'q':
-            run = q()
-        else:
-            print(' Im sorry that is not a command. :(')
-#main
 def main():
-    print('\n Welcome to A Simple Tweet Bot.\n')
-    menu()
+  work = True
+  print('Its time to Tweet baby! :P')
+  starttime =  'started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  writefile('errors.txt', starttime)
+  while(work):
+        #try:
+          x = waittime(3, 6)  #wait 3 to 6 hrs to tweet
+          context = True
+          subject = trending()
+          twt = markov(gatherinfo(subject), 25, randint(10,13))
+          if twt is None or len(twt) is 1:
+              context = False
+          if context:  #if we got a None for the tweet just move on
+            hashtags = gethashtags(subject) #otherwise we add a hashtag to it
+            if hashtags is not None:
+                twt += '. ' + hashtags[randint(0,len(hashtags)-1)]
+            if len(twt) < 140:  #tweet too long
+              tweet(twt)
+          context = True  #reset context
+          work = False
+          #sleep(x) #only do this every so often
+        #except:
+          #err = 'error at ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n"
+          #writefile('errors.txt', err)
 #access and authorize the twitter credentials from the file
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth)
+api = tweepy.API(auth, wait_on_rate_limit=True) #run tweepy api and wait to do anything until the rate limit is gone
 main()
