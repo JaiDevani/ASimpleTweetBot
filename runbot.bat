@@ -1,2 +1,2 @@
 cls
-python tweetbot.py
+python twittbot.py
