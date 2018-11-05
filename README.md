@@ -1,6 +1,8 @@
 # ASimpleTweetBot
-A tweetbot that usese different natural language processing techniques to tweet about subjects
+A twitter bot that uses Markov chaining techniques to create posts on twitter about one of the trending topics for North America.
 
 
-DISCLAIMER: This uses Natural Language Processing to create the text of its tweets, so there is a chance (depending on the subject matter)
-that the bot may tweet something offensive.  This is not its designed purpose, and I take no responsibility for it
+DISCLAIMER: 
+  This program uses Natural Language Processing to create the text of its tweets. Depending on the subject matter there is a possibility  
+  that the algorithm may generate a tweet that could be perceived as vulgar or offensive.  This is not its designed purpose, and I take no 
+  responsibility for it.
