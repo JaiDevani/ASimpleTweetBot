@@ -117,10 +117,12 @@ def waittime(first, second):
     return randint(low, high)
 
 # Tweets a given message
-def tweet(message):
+def tweet(message, print):
     try:
-        # print(message)
-        api.update_status(message)
+        if(print):
+            print(message)
+        else:
+            api.update_status(message)
     except tweepy.TweepError as e:
         print(e.reason)
 
@@ -128,24 +130,19 @@ def tweet(message):
 def main():
     work = True
     print('Its time to Tweet baby! :P')
-    starttime = 'started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    starttime = 'Twitter bot started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     writefile('errors.txt', starttime)
     while(work):
         # Wait 3 to 6 hrs between tweets
         x = waittime(3, 6)
-        context = True
         subject = trending()
         twt = markov(gatherinfo(subject), 25, randint(10, 13))
-        if twt is None or len(twt) is 1:
-            context = False
-        if context:  # If the tweet is 'None' ignore it
+        # If the tweet is 'None' ignore it
+        if twt is not None or len(twt) > 1:
             hashtags = gethashtags(subject)  # Otherwise we add a hashtag to it
-
             if hashtags is not None:
                 twt += '. ' + hashtags[randint(0, len(hashtags)-1)]
-            if len(twt) < 140:  # Tweet is too long
-                tweet(twt)
-        context = True  # Reset the context
+            tweet(twt)
         work = False
 
 
