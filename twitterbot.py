@@ -63,7 +63,7 @@ def createTweet(MasterDict):
     # Return the created text
     return text
 
-def disect(tokens):
+def createMasterDict(tokens):
     # Dictionary of dictionaries
     MasterDict = {}
 
@@ -100,15 +100,15 @@ def disect(tokens):
 # Get rid of some of the unwanted things that are in normal tweets
 def clean(tweet):
     tweet = re.sub("https?\:\/\/", "", tweet)  # links
-    tweet = re.sub("#\S+", "", tweet)  # hashtags
-    tweet = re.sub("\.?@", "", tweet)  # at mentions
-    tweet = re.sub("RT.+", "", tweet)  # Retweets
-    tweet = re.sub("rt.+", "", tweet)  # retweets in lower case
-    tweet = re.sub("Video\:", "", tweet)  # Videos
-    tweet = re.sub("\n", "", tweet)  # new lines
-    tweet = re.sub("^\.\s.", "", tweet)  # leading whitespace
-    tweet = re.sub("\s+", " ", tweet)  # extra whitespace
-    tweet = re.sub("&amp;", "and", tweet)  # encoded ampersands
+    tweet = re.sub("#\S+", "", tweet)          # hashtags
+    tweet = re.sub("\.?@", "", tweet)          # at mentions
+    tweet = re.sub("RT.+", "", tweet)          # Retweets
+    tweet = re.sub("rt.+", "", tweet)          # retweets in lower case
+    tweet = re.sub("Video\:", "", tweet)       # Videos
+    tweet = re.sub("\n", "", tweet)            # new lines
+    tweet = re.sub("^\.\s.", "", tweet)        # leading whitespace
+    tweet = re.sub("\s+", " ", tweet)          # extra whitespace
+    tweet = re.sub("&amp;", "and", tweet)      # encoded ampersands
     return tweet
 
 # Returns an array with all the tokens from all the tweets
@@ -119,21 +119,38 @@ def gatherTweetData(info):
 
     # Search twitter for the info
     tweets = api.search(info)
+    # Clean each tweet
     for tweet in tweets:
         data.append(clean(tweet.text))
+
+    # Tokenize each tweet
     for d in data:
         gathered = tokenize(d)
+
+        # Add each token in the tokenlist to the tokens
         for t in gathered:
             tokens.append(t)
-    return tokens
+    #return a MasterDict from the tokens
+    return createMasterDict(tokens)
 
 # Returns the trending hashtag from the top trending topics for the US
 def trending():
-    contrycode = 2487610
-    trending = api.trends_place(contrycode)
+    # countryCode for the US
+    countryCode = 2487610
+
+    # Get trending topics for the US
+    trending = api.trends_place(countryCode)
+
+    # Grab the top trending one
     data = trending[0]
+
+    # Collect the trends
     trends = data['trends']
+
+    # Get the hastags for the trends
     hashtags = [trend['name'] for trend in trends]
+
+    # Pick one of the Hastags and return it
     hashtag = hashtags[randint(0, len(hashtags))]
     return hashtag
 
@@ -150,13 +167,18 @@ def waittime(first, second):
 # Tweets a given message
 def tweet(message, print):
     try:
+
         #print = true means DEBUGGING
         if(print):
+
+            # Print the message to the console
             print(message)
         else:
+            
             # Otherwise tweet the message
             api.update_status(message)
-    # print any errors
+
+    # write any errors to the errors.txt file
     except tweepy.TweepError as e:
         writeToFile('errors.txt', e.reason)
 
@@ -206,6 +228,7 @@ def main():
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 
-# Run tweepy api and wait to do anything until the rate limit is gone
+# Run tweepy api
+# wait_on_rate_limit=True : means wait to do anything until the rate limit is gone
 api = tweepy.API(auth, wait_on_rate_limit=True)
 main()
