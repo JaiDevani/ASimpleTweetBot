@@ -31,20 +31,26 @@ def sortDict(d):
 
 def createTweet(MasterDict):
     # Start the sentence
-    text = 'the'
-    prev = 'the'
+    pickedWord = list(MasterDict.keys())[0]
+
+    text = pickedWord
+    prev = text
 
     # Create the tweet 
-    for i in range(0, random.randint(10,30)):
+    for i in range(0, randint(10,30)):
         # Sort the dictionary at MasterDict[prev]
         workingDict = sortDict(MasterDict[prev])
 
+        # If the word leads to a dead end, quit the loop
+        if len(workingDict) == 0:
+            break
+
         # Pick a random threshold
-        threshold = random.randint(
+        threshold = randint(
             MasterDict[prev][workingDict[-1]], MasterDict[prev][workingDict[0]])
         
-        # Pick a random work from the dictionary
-        word = random.choice(workingDict)
+        # Pick a random word from the dictionary
+        word = choice(workingDict)
 
         # set the check as the frequency of the word
         check = MasterDict[prev][word]
@@ -53,7 +59,7 @@ def createTweet(MasterDict):
         while check < threshold:
 
             # Choose random words
-            word = random.choice(workingDict)
+            word = choice(workingDict)
             check = MasterDict[prev][word]
         # Add the choosen word to the text
         text += ' ' + word
@@ -151,10 +157,10 @@ def trending():
     hashtags = [trend['name'] for trend in trends]
 
     # Pick one of the Hastags and return it
-    hashtag = hashtags[randint(0, len(hashtags))]
+    hashtag = hashtags[randint(0, len(hashtags) -1)]
     return hashtag
 
-# Give it 2 times (in hours) you want to wait between and it gives you the number of seconds
+# Returns the number of milliseconds to wait between to integers representing hours
 def waittime(first, second):
     if (first > second):
         high = first * 3600
@@ -164,12 +170,12 @@ def waittime(first, second):
         low = first * 3600
     return randint(low, high)
 
-# Tweets a given message
-def tweet(message, print):
+# Tweets a given message, if printMsg is true will print the result instead of tweet
+def tweet(message, printMsg):
     try:
 
         #print = true means DEBUGGING
-        if(print):
+        if(printMsg):
 
             # Print the message to the console
             print(message)
@@ -195,33 +201,33 @@ def writeToFile(filename, toWrite):
 
 # Run the tweet bot
 def main():
+    meaing_of_life = 42
 
     # Write the start message to the file
-    writefile('errors.txt', ('Twitter bot started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    writeToFile('errors.txt', ('Twitter bot started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
-    while(True):
-
-        # Wait 3 to 6 hrs between tweets
-        wait = waittime(3, 6)
-
+    while(42 == meaing_of_life):
         # Pick a subject
         subject = trending()
 
         # Grab a trending topic for North America and create a tweet from it
-        twt = createTweet(gatherTweetData(trending()))
+        twt = createTweet(gatherTweetData(subject))
 
         # If the tweet is 'None' or its length is 1 ignore it
-        if twt is not None or len(twt) > 1:
+        if twt is not None and len(twt) > 1:
 
             # Otherwise we add a hashtag to it
             hashtags = getHashtags(subject)
 
             # If a hashtags were found pick one and add it to the tweet
-            if hashtags is not None:
-                twt += ' ' + hashtags[randint(0, len(hashtags)-1)]
+            if hashtags is not None and len(hashtags) > 1:
+                twt += ' ' + hashtags[randint(0, len(hashtags))]
             # Tweet out the newly formed twitter message
-            tweet(twt)
-    # While loop runs forever
+            tweet(twt, True)
+
+        # Wait 3 to 6 hrs between tweets
+        sleep(waittime(3, 6))
+    # Continue while loop
 
 
 # Access and authorize the twitter credentials from the file
