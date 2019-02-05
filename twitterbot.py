@@ -105,15 +105,15 @@ def createMasterDict(tokens):
 
 # Get rid of some of the unwanted things that are in normal tweets
 def clean(tweet):
-    tweet = re.sub("https?\:\/\/", "", tweet)  # links
+    tweet = re.sub("http\S+", "", tweet)       # links
     tweet = re.sub("#\S+", "", tweet)          # hashtags
     tweet = re.sub("\.?@", "", tweet)          # at mentions
     tweet = re.sub("RT.+", "", tweet)          # Retweets
     tweet = re.sub("rt.+", "", tweet)          # retweets in lower case
     tweet = re.sub("Video\:", "", tweet)       # Videos
     tweet = re.sub("\n", "", tweet)            # new lines
-    tweet = re.sub("^\.\s.", "", tweet)        # leading whitespace
-    tweet = re.sub("\s+", " ", tweet)          # extra whitespace
+    tweet = re.sub("^\.\S.", "", tweet)        # leading whitespace
+    tweet = re.sub("\S+", " ", tweet)          # extra whitespace
     tweet = re.sub("&amp;", "and", tweet)      # encoded ampersands
     return tweet
 
@@ -195,7 +195,7 @@ def writeToFile(filename, toWrite):
     f = open(filename, 'a')
 
     # Write to the file and close it
-    f.write(toWrite)
+    f.write(toWrite + '\r\n')
     f.close()
 
 
