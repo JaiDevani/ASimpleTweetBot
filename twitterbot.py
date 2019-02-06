@@ -1,144 +1,240 @@
 import tweepy
-import nltk
 import string
 import re
 import operator
 from time import sleep
 from nltk.tokenize import RegexpTokenizer
-from credentials import * #import twitter credentials from the file
+from credentials import *  # Import twitter credentials from the file
 from random import *
 import datetime
 
-#writes likes to a given file
-def writefile(filename, toWrite):
-    f = open(filename, 'a')
-    f.write(toWrite)
-    f.close()
-
-def gethashtags(subject):
+# Gets the hashtags from the tweets
+def getHashtags(subject):
     tags = []
+
+    # Search the subject
     tweets = api.search(subject)
+
+    # take each tweet split it by spaces and search for hashtags
     for tweet in tweets:
         words = re.split(' ', tweet.text)
         tags.extend(tag for tag in words if tag.startswith('#'))
+    # Return all found tags
     return tags
-#takes the sentence and returns an array of the words in the sentence
-def tokenize(sentence):
-    tokens = re.split('[^A-Za-z]+', sentence.lower()) #grab the words
-    tokens = list(filter(None, tokens)) #remove nulls
-    return tokens
-#takes 'info' and seraches twitter for tweets with that keyword and then
-def ngram(words, n=2):
-    gram = dict()
-    assert n > 1 and n < 100
-    #make a dictionary of words and their counts
-    for i in range(len(words)-(n-1)):
-        key = tuple(words[i:i+n])
-        if key in gram:
-            gram[key] +=1
-        else:
-            gram[key] = 1
-    #now sort the list my frequency
-    gram = sorted(gram.items(), key=operator.itemgetter(1))
-    return gram
-#uses wordcount as a weight to pseuo-randomly choose the next word
-def chooseword(choices):
-   total = sum(wc for word, wc in choices)
-   r = uniform(0, total)
-   count = 0
-   for word, wc in choices:
-      if count + wc > r:
-         return word[1]
-      count += wc
-#uses a markov chain to create a sentence of given word size
-def markov(words, chainlength=2, size=7):
-    curr = choice(words)
-    sentence = []
-    gram2 = ngram(words, chainlength)
-    for i in range(size): #number of  words for the sentence
-        sentence.append(curr)
-        choices = [element for element in gram2 if element[0][0] == curr]
-        curr = chooseword(choices)
-        if curr is None:
+
+# Tokenize a given text
+def tokenize(text):
+    return [word.lower().strip(string.punctuation) for word in text.split()]
+
+def sortDict(d):
+    return sorted(d, key=d.get, reverse=True)
+
+def createTweet(MasterDict):
+    # Start the sentence
+    pickedWord = list(MasterDict.keys())[0]
+
+    text = pickedWord
+    prev = text
+
+    # Create the tweet 
+    for i in range(0, randint(10,30)):
+        # Sort the dictionary at MasterDict[prev]
+        workingDict = sortDict(MasterDict[prev])
+
+        # If the word leads to a dead end, quit the loop
+        if len(workingDict) == 0:
             break
-    if len(sentence) < 3:
-        markov(words, chainlength, size) # if our chain is bad try again
-    return ' '.join(sentence)
-#get rid of some of the unwanted things that are in normal tweets
+
+        # Pick a random threshold
+        threshold = randint(
+            MasterDict[prev][workingDict[-1]], MasterDict[prev][workingDict[0]])
+        
+        # Pick a random word from the dictionary
+        word = choice(workingDict)
+
+        # set the check as the frequency of the word
+        check = MasterDict[prev][word]
+
+        # while the check is less than the threshold
+        while check < threshold:
+
+            # Choose random words
+            word = choice(workingDict)
+            check = MasterDict[prev][word]
+        # Add the choosen word to the text
+        text += ' ' + word
+
+        # Set prev to the chosen word
+        prev = word
+    # Return the created text
+    return text
+
+def createMasterDict(tokens):
+    # Dictionary of dictionaries
+    MasterDict = {}
+
+    # prev starts as none
+    prev = None
+
+    # Tokenize the tweet
+    for item in tokens:
+
+        # If the item has not been seen yet
+        if item not in MasterDict:
+
+            # Add it to the first dictionary and set up its new dictionary
+            MasterDict[item] = {}
+
+        # If this is not the first loop
+        if prev is not None:
+
+            # If the current item has not been seen in the prev words dictionary
+            if item not in MasterDict[prev]:
+
+                # Add it to the dictionary
+                MasterDict[prev][item] = 0
+
+            # Add 1 to the count to the dictionary of prev
+            MasterDict[prev][item] = (MasterDict[prev][item] + 1)
+
+        # set prev to the current item
+        prev = item
+
+    #return the new MasterDict
+    return MasterDict
+
+# Get rid of some of the unwanted things that are in normal tweets
 def clean(tweet):
-    tweet = re.sub("https?\:\/\/", "", tweet)   #links
-    tweet = re.sub("#\S+", "", tweet)           #hashtags
-    tweet = re.sub("\.?@", "", tweet)           #at mentions
-    tweet = re.sub("RT.+", "", tweet)           #Retweets
-    tweet = re.sub("rt.+", "", tweet)           #retweets in lower case
-    tweet = re.sub("Video\:", "", tweet)        #Videos
-    tweet = re.sub("\n", "", tweet)             #new lines
-    tweet = re.sub("^\.\s.", "", tweet)         #leading whitespace
-    tweet = re.sub("\s+", " ", tweet)           #extra whitespace
-    tweet = re.sub("&amp;", "and", tweet)       #encoded ampersands
+    tweet = re.sub("https?\:\/\/", "", tweet)  # links
+    tweet = re.sub("#\S+", "", tweet)          # hashtags
+    tweet = re.sub("\.?@", "", tweet)          # at mentions
+    tweet = re.sub("RT.+", "", tweet)          # Retweets
+    tweet = re.sub("rt.+", "", tweet)          # retweets in lower case
+    tweet = re.sub("Video\:", "", tweet)       # Videos
+    tweet = re.sub("\n", "", tweet)            # new lines
+    tweet = re.sub("^\.\s.", "", tweet)        # leading whitespace
+    tweet = re.sub("\s+", " ", tweet)          # extra whitespace
+    tweet = re.sub("&amp;", "and", tweet)      # encoded ampersands
     return tweet
-#returns an array with all the tokens from all the tweets
-def gatherinfo(info):
+
+# Returns an array with all the tokens from all the tweets
+def gatherTweetData(info):
+    # Set up the arrays
     data = []
     tokens = []
+
+    # Search twitter for the info
     tweets = api.search(info)
+    # Clean each tweet
     for tweet in tweets:
         data.append(clean(tweet.text))
+
+    # Tokenize each tweet
     for d in data:
         gathered = tokenize(d)
+
+        # Add each token in the tokenlist to the tokens
         for t in gathered:
             tokens.append(t)
-    return tokens
+    #return a MasterDict from the tokens
+    return createMasterDict(tokens)
+
+# Returns the trending hashtag from the top trending topics for the US
 def trending():
-    trending = api.trends_place(2487610)
+    # countryCode for the US
+    countryCode = 2487610
+
+    # Get trending topics for the US
+    trending = api.trends_place(countryCode)
+
+    # Grab the top trending one
     data = trending[0]
+
+    # Collect the trends
     trends = data['trends']
+
+    # Get the hastags for the trends
     hashtags = [trend['name'] for trend in trends]
-    hashtag = hashtags[randint(0, len(hashtags))]
+
+    # Pick one of the Hastags and return it
+    hashtag = hashtags[randint(0, len(hashtags) -1)]
     return hashtag
-#give it 2 times (in hours) you want to wait between and it gives you the number of seconds
+
+# Returns the number of milliseconds to wait between to integers representing hours
 def waittime(first, second):
     if (first > second):
-        high = first *3600
-        low = second *3600
+        high = first * 3600
+        low = second * 3600
     else:
-        high = second *3600
-        low = first *3600
+        high = second * 3600
+        low = first * 3600
     return randint(low, high)
-#tweet the message given
-def tweet(message):
+
+# Tweets a given message, if printMsg is true will print the result instead of tweet
+def tweet(message, printMsg):
     try:
-        #print(message)
-        api.update_status(message)
+
+        #print = true means DEBUGGING
+        if(printMsg):
+
+            # Print the message to the console
+            print(message)
+        else:
+            
+            # Otherwise tweet the message
+            api.update_status(message)
+
+    # write any errors to the errors.txt file
     except tweepy.TweepError as e:
-        print(e.reason)
+        writeToFile('errors.txt', e.reason)
+
+# Writes likes to a given file
+def writeToFile(filename, toWrite):
+
+    # Open the file
+    f = open(filename, 'a')
+
+    # Write to the file and close it
+    f.write(toWrite)
+    f.close()
+
+
+# Run the tweet bot
 def main():
-  work = True
-  print('Its time to Tweet baby! :P')
-  starttime =  'started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-  writefile('errors.txt', starttime)
-  while(work):
-        #try:
-          x = waittime(3, 6)  #wait 3 to 6 hrs to tweet
-          context = True
-          subject = trending()
-          twt = markov(gatherinfo(subject), 25, randint(10,13))
-          if twt is None or len(twt) is 1:
-              context = False
-          if context:  #if we got a None for the tweet just move on
-            hashtags = gethashtags(subject) #otherwise we add a hashtag to it
-            if hashtags is not None:
-                twt += '. ' + hashtags[randint(0,len(hashtags)-1)]
-            if len(twt) < 140:  #tweet too long
-              tweet(twt)
-          context = True  #reset context
-          work = False
-          #sleep(x) #only do this every so often
-        #except:
-          #err = 'error at ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n"
-          #writefile('errors.txt', err)
-#access and authorize the twitter credentials from the file
+    meaing_of_life = 42
+
+    # Write the start message to the file
+    writeToFile('errors.txt', ('Twitter bot started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+    while(42 == meaing_of_life):
+        # Pick a subject
+        subject = trending()
+
+        # Grab a trending topic for North America and create a tweet from it
+        twt = createTweet(gatherTweetData(subject))
+
+        # If the tweet is 'None' or its length is 1 ignore it
+        if twt is not None and len(twt) > 1:
+
+            # Otherwise we add a hashtag to it
+            hashtags = getHashtags(subject)
+
+            # If a hashtags were found pick one and add it to the tweet
+            if hashtags is not None and len(hashtags) > 1:
+                twt += ' ' + hashtags[randint(0, len(hashtags))]
+            # Tweet out the newly formed twitter message
+            tweet(twt, True)
+
+        # Wait 3 to 6 hrs between tweets
+        sleep(waittime(3, 6))
+    # Continue while loop
+
+
+# Access and authorize the twitter credentials from the file
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth, wait_on_rate_limit=True) #run tweepy api and wait to do anything until the rate limit is gone
+
+# Run tweepy api
+# wait_on_rate_limit=True : means wait to do anything until the rate limit is gone
+api = tweepy.API(auth, wait_on_rate_limit=True)
 main()

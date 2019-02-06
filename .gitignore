@@ -99,4 +99,5 @@ ENV/
 
 # mypy
 .mypy_cache/
-/credentials.py
+credentials.py
+*.txt
