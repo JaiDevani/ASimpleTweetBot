@@ -112,8 +112,8 @@ def clean(tweet):
     tweet = re.sub("rt.+", "", tweet)          # retweets in lower case
     tweet = re.sub("Video\:", "", tweet)       # Videos
     tweet = re.sub("\n", "", tweet)            # new lines
-    tweet = re.sub("^\.\S.", "", tweet)        # leading whitespace
-    tweet = re.sub("\S+", " ", tweet)          # extra whitespace
+    tweet = re.sub("^\.\s.", "", tweet)        # leading whitespace
+    tweet = re.sub("\s+", " ", tweet)          # extra whitespace
     tweet = re.sub("&amp;", "and", tweet)      # encoded ampersands
     return tweet
 
@@ -218,7 +218,7 @@ def main():
 
             # If a hashtags were found pick one and add it to the tweet
             if hashtags is not None and len(hashtags) > 1:
-                twt += ' ' + hashtags[randint(0, len(hashtags))]
+                twt += ' ' + hashtags[randint(0, len(hashtags) - 1)]
             # Tweet out the newly formed twitter message
             tweet(twt)
 
