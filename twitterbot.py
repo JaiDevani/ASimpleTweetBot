@@ -171,20 +171,17 @@ def waittime(first, second):
     return randint(low, high)
 
 # Tweets a given message, if printMsg is true will print the result instead of tweet
-def tweet(message, printMsg):
+def tweet(message, printMsg = False):
     try:
-
-        #print = true means DEBUGGING
+        # printMsg = true means DEBUGGING
         if(printMsg):
-
             # Print the message to the console
             print(message)
         else:
-            
             # Otherwise tweet the message
             api.update_status(message)
 
-    # write any errors to the errors.txt file
+    # Write any errors to the errors.txt file
     except tweepy.TweepError as e:
         writeToFile('errors.txt', e.reason)
 
@@ -223,7 +220,7 @@ def main():
             if hashtags is not None and len(hashtags) > 1:
                 twt += ' ' + hashtags[randint(0, len(hashtags))]
             # Tweet out the newly formed twitter message
-            tweet(twt, True)
+            tweet(twt)
 
         # Wait 3 to 6 hrs between tweets
         sleep(waittime(3, 6))
