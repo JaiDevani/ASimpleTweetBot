@@ -1,14 +1,11 @@
-import tweepy
-import string
-import re
-import operator
-from time import sleep
-from nltk.tokenize import RegexpTokenizer
 from credentials import *  # Import twitter credentials from the file
 from random import *
-import datetime
+import string
+import tweepy
+import re
 
 # Gets the hashtags from the tweets
+# subject: string - subject to gather tweets about
 def getHashtags(subject):
     tags = []
 
@@ -23,12 +20,19 @@ def getHashtags(subject):
     return tags
 
 # Tokenize a given text
+# text: string - text from a tweet to be tokenized
 def tokenize(text):
     return [word.lower().strip(string.punctuation) for word in text.split()]
+
+# Sorts a dictionary in descending orderbased on the keys
+# d: dictionary - dictionary to be sorted
+
 
 def sortDict(d):
     return sorted(d, key=d.get, reverse=True)
 
+# Creates a tweet using the master dictionary
+# MasterDict: Dictionary<string, Dictionary<string, int>>
 def createTweet(MasterDict):
     # Start the sentence
     pickedWord = list(MasterDict.keys())[0]
@@ -36,8 +40,8 @@ def createTweet(MasterDict):
     text = pickedWord
     prev = text
 
-    # Create the tweet 
-    for i in range(0, randint(10,30)):
+    # Create the tweet
+    for i in range(0, randint(10, 30)):
         # Sort the dictionary at MasterDict[prev]
         workingDict = sortDict(MasterDict[prev])
 
@@ -48,7 +52,7 @@ def createTweet(MasterDict):
         # Pick a random threshold
         threshold = randint(
             MasterDict[prev][workingDict[-1]], MasterDict[prev][workingDict[0]])
-        
+
         # Pick a random word from the dictionary
         word = choice(workingDict)
 
@@ -69,6 +73,8 @@ def createTweet(MasterDict):
     # Return the created text
     return text
 
+# Creates the MasterDict datastructure from a list of tokens
+# tokens: Array<string> - array of words to be turned into the MasterDict
 def createMasterDict(tokens):
     # Dictionary of dictionaries
     MasterDict = {}
@@ -100,10 +106,11 @@ def createMasterDict(tokens):
         # set prev to the current item
         prev = item
 
-    #return the new MasterDict
+    # return the new MasterDict
     return MasterDict
 
 # Get rid of some of the unwanted things that are in normal tweets
+# tweet: string - the body of the tweets text
 def clean(tweet):
     tweet = re.sub("http\S+", "", tweet)       # links
     tweet = re.sub("#\S+", "", tweet)          # hashtags
@@ -118,6 +125,7 @@ def clean(tweet):
     return tweet
 
 # Returns an array with all the tokens from all the tweets
+# info: string - subject to gather tweets about
 def gatherTweetData(info):
     # Set up the arrays
     data = []
@@ -136,13 +144,13 @@ def gatherTweetData(info):
         # Add each token in the tokenlist to the tokens
         for t in gathered:
             tokens.append(t)
-    #return a MasterDict from the tokens
+    # return a MasterDict from the tokens
     return createMasterDict(tokens)
 
 # Returns the trending hashtag from the top trending topics for the US
 def trending():
     # countryCode for the US
-    countryCode = 2487610
+    countryCode = 23424977
 
     # Get trending topics for the US
     trending = api.trends_place(countryCode)
@@ -157,10 +165,12 @@ def trending():
     hashtags = [trend['name'] for trend in trends]
 
     # Pick one of the Hastags and return it
-    hashtag = hashtags[randint(0, len(hashtags) -1)]
+    hashtag = hashtags[randint(0, len(hashtags) - 1)]
     return hashtag
 
 # Returns the number of milliseconds to wait between to integers representing hours
+# first: int - lowest number of hours to wait
+# second: int - longest number of hours to wait
 def waittime(first, second):
     if (first > second):
         high = first * 3600
@@ -171,7 +181,9 @@ def waittime(first, second):
     return randint(low, high)
 
 # Tweets a given message, if printMsg is true will print the result instead of tweet
-def tweet(message, printMsg = False):
+# message: string - message to tweet out
+# printMsg: boolean - determines if the tweet is printed in the console or posted on Twitter
+def tweet(message, printMsg=False):
     try:
         # printMsg = true means DEBUGGING
         if(printMsg):
@@ -186,6 +198,8 @@ def tweet(message, printMsg = False):
         writeToFile('errors.txt', e.reason)
 
 # Writes likes to a given file
+# filename: string - name of the file to be written to
+# toWrite: stirng  - message to write
 def writeToFile(filename, toWrite):
 
     # Open the file
@@ -198,33 +212,28 @@ def writeToFile(filename, toWrite):
 
 # Run the tweet bot
 def main():
-    meaing_of_life = 42
 
-    # Write the start message to the file
-    writeToFile('errors.txt', ('Twitter bot started at: ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-
-    while(42 == meaing_of_life):
+    # Attempt to create and send a tweet
+    try:
         # Pick a subject
         subject = trending()
 
         # Grab a trending topic for North America and create a tweet from it
         twt = createTweet(gatherTweetData(subject))
 
-        # If the tweet is 'None' or its length is 1 ignore it
-        if twt is not None and len(twt) > 1:
+        # Add a hashtag to the tweet
+        hashtags = getHashtags(subject)
 
-            # Otherwise we add a hashtag to it
-            hashtags = getHashtags(subject)
+        # If a hashtags were found pick one and add it to the tweet
+        if hashtags is not None:
+            twt += ' ' + hashtags[randint(0, len(hashtags) - 1)]
+            
+        # Tweet out the newly formed twitter message
+        tweet(twt)
+    except Exception as ex:
+        # Write the start message to the file
+        writeToFile('errors.txt', "Error: " + str(ex))
 
-            # If a hashtags were found pick one and add it to the tweet
-            if hashtags is not None and len(hashtags) > 1:
-                twt += ' ' + hashtags[randint(0, len(hashtags) - 1)]
-            # Tweet out the newly formed twitter message
-            tweet(twt)
-
-        # Wait 3 to 6 hrs between tweets
-        sleep(waittime(3, 6))
-    # Continue while loop
 
 
 # Access and authorize the twitter credentials from the file
